@@ -119,7 +119,7 @@ const BabylonScene: React.FC = () => {
         const material = collisionMesh.material as StandardMaterial;
         material.reflectionTexture = cubeTextures[index];
         material.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
-        console.log("Handle change texture called");
+
         const camera = scene.getCameraByName("mainCamera") as FreeCamera;
         camera.position = scene.getMeshByName("1401-C0" + index)!.position;
         const distance = collisionMesh.position.subtract(camera.position);
