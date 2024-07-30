@@ -9,7 +9,11 @@ import {
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
-export const createInfoPoint = (scene: Scene, position: Vector3) => {
+export const createInfoPoint = (
+  scene: Scene,
+  position: Vector3,
+  card_path: string,
+) => {
   // Create the info point (small plane)
   const infoPoint = MeshBuilder.CreatePlane("infoPoint", { size: 0.2 }, scene);
   infoPoint.position = position;
@@ -37,7 +41,7 @@ export const createInfoPoint = (scene: Scene, position: Vector3) => {
   infoPanel.billboardMode = Mesh.BILLBOARDMODE_ALL;
 
   const panelMaterial = new StandardMaterial("infoPanelMaterial", scene);
-  panelMaterial.diffuseTexture = new Texture("/assets/info-card.png", scene);
+  panelMaterial.diffuseTexture = new Texture(card_path, scene);
   panelMaterial.diffuseTexture.hasAlpha = true;
   panelMaterial.emissiveColor = new Color3(1, 1, 1);
   panelMaterial.ambientColor = Color3.White();

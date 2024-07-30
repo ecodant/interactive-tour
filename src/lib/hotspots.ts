@@ -13,7 +13,12 @@ import {
   FreeCamera,
 } from "@babylonjs/core";
 
-export const createHotspot = (scene: Scene, index: number): Mesh => {
+export const createHotpot = (
+  scene: Scene,
+  index: number,
+  position: Vector3,
+  onClick: () => void,
+): Mesh => {
   const planeMaterial = new StandardMaterial(`hotspotMaterial${index}`, scene);
   const texture = new Texture("/assets/hotspot_floor.png", scene);
   texture.hasAlpha = true;
@@ -27,16 +32,19 @@ export const createHotspot = (scene: Scene, index: number): Mesh => {
     { width: 0.4, height: 0.4 },
     scene,
   );
+  planeMesh.isPickable = true;
   planeMesh.material = planeMaterial;
 
-  const refPoint = scene.getMeshByName(`1401-C0${index}`);
-  if (refPoint) {
-    planeMesh.position.x = refPoint.position.x;
-    planeMesh.position.z = refPoint.position.z;
-    planeMesh.position.y = 0.3;
-  }
+  planeMesh.position.x = position.x;
+  planeMesh.position.z = position.z;
+  planeMesh.position.y = 0.3;
   planeMesh.rotation = new Vector3(Math.PI / 2, 0, 0);
-
+  planeMesh.actionManager = new ActionManager(scene);
+  planeMesh.actionManager.registerAction(
+    new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+      onClick();
+    }),
+  );
   return planeMesh;
 };
 

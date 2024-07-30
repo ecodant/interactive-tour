@@ -2,12 +2,11 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 //Import Scenes and Utils
 import { setupScene } from "@/lib/sceneSetup";
 import { cubeMaps, infoPoints } from "@/lib/vrTourInfo";
-import { assignHotspotEvent, createHotspot } from "@/lib/hotspots";
+import { createHotpot } from "@/lib/hotspots";
 import { createInfoPoint } from "@/lib/infoPoints";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import {
   Scene,
-  FreeCamera,
   Vector3,
   SceneLoader,
   Mesh,
@@ -16,41 +15,47 @@ import {
   Color3,
   Texture,
   Matrix,
-  UniversalCamera,
+  FreeCamera,
 } from "@babylonjs/core";
 import { Button } from "../components/ui/button";
+import { cameraAnimation, opacityAnimation } from "@/lib/animations";
 
 const BabylonScene: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scene, setScene] = useState<Scene | null>(null);
   const [collisionMesh, setCollisionMesh] = useState<Mesh | null>(null);
   const [cubeTextures, setCubeTextures] = useState<CubeTexture[]>([]);
+  const [cameraLocations, setCameraLocation] = useState<Vector3[]>([]);
   const [currentTextureIndex, setCurrentTextureIndex] = useState(0);
 
   const preloadCubeTextures = useCallback((scene: Scene) => {
-    const textures = cubeMaps.map((path) => new CubeTexture(path, scene));
+    const textures = cubeMaps.map((path, index) => {
+      const cubeTex = new CubeTexture(path, scene);
+      cubeTex.coordinatesMode = Texture.SKYBOX_MODE;
+
+      const pointPosition = scene.getMeshByName("1401-C0" + index)?.position;
+
+      if (pointPosition) {
+        const distance = Vector3.Zero().subtract(pointPosition);
+        const reflectionMatrix = Matrix.Translation(
+          distance.x,
+          distance.y,
+          distance.z,
+        );
+        cubeTex.setReflectionTextureMatrix(reflectionMatrix);
+      }
+
+      return cubeTex;
+    });
+
     setCubeTextures(textures);
     return textures;
   }, []);
 
-  const loadHotspots = useCallback(
-    (scene: Scene, cubTextures: CubeTexture[]) => {
-      cubeMaps.forEach((_, index) => {
-        const hotspot = createHotspot(scene, index);
-        assignHotspotEvent(
-          scene,
-          hotspot,
-          index,
-          cubTextures,
-          setCurrentTextureIndex,
-        );
-      });
-    },
-    [],
-  );
-
   const createInfoPoints = useCallback((scene: Scene) => {
-    infoPoints.forEach((point) => createInfoPoint(scene, point.position));
+    for (let i = 0; i < infoPoints.length; i++) {
+      createInfoPoint(scene, infoPoints[i].position, infoPoints[i].card_path);
+    }
   }, []);
 
   useEffect(() => {
@@ -59,7 +64,7 @@ const BabylonScene: React.FC = () => {
 
       let camera = scene.getCameraByName("mainCamera");
       if (!camera) {
-        camera = new UniversalCamera("camera", Vector3.Zero(), scene);
+        camera = new FreeCamera("camera", Vector3.Zero(), scene);
       }
 
       const material = new StandardMaterial("currentMat", scene);
@@ -73,12 +78,22 @@ const BabylonScene: React.FC = () => {
         function () {
           const textures = preloadCubeTextures(scene);
 
-          camera.position = scene.getMeshByName("1401-C00")!.position;
+          const cameraSpots: Vector3[] = [];
+          for (let i = 0; i < textures.length; i++) {
+            const spot = scene.getMeshByName("1401-C0" + i)?.position;
+            if (spot) cameraSpots.push(spot);
+          }
+          setCameraLocation(cameraSpots);
+
+          camera.position = cameraSpots[0];
           const mesh = scene.getMeshByName("Collision") as Mesh;
-          // console.log("First updated of the mesh, bro");
           scene.activeCamera = camera;
           if (mesh) {
             setCollisionMesh(mesh);
+
+            opacityAnimation(mesh, 25);
+            cameraAnimation(camera, cameraSpots[1]);
+
             material.reflectionTexture = textures[0];
             material.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
             mesh.material = material;
@@ -91,7 +106,19 @@ const BabylonScene: React.FC = () => {
             );
             textures[0].setReflectionTextureMatrix(reflectionMatrix);
 
-            loadHotspots(scene, textures);
+            for (let i = 0; i < cubeMaps.length; i++) {
+              const pointPosition = scene.getMeshByName(
+                "1401-C0" + i,
+              )?.position;
+              if (pointPosition)
+                createHotpot(scene, i, pointPosition, () => {
+                  setCurrentTextureIndex(i);
+                  cameraAnimation(camera, cameraSpots[i]);
+                  scene.beginAnimation(camera, 0, 100, false, 1, () => {
+                    material.reflectionTexture = textures[i];
+                  });
+                });
+            }
             createInfoPoints(scene);
           }
         },
@@ -111,30 +138,27 @@ const BabylonScene: React.FC = () => {
         engine.dispose();
       };
     }
-  }, [createInfoPoints, loadHotspots, preloadCubeTextures]);
+  }, [createInfoPoints, preloadCubeTextures]);
 
   const handleChangeTexture = useCallback(
     (index: number) => {
       if (scene && collisionMesh && cubeTextures.length > index) {
-        const material = collisionMesh.material as StandardMaterial;
-        material.reflectionTexture = cubeTextures[index];
-        material.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
-
         const camera = scene.getCameraByName("mainCamera") as FreeCamera;
-        camera.position = scene.getMeshByName("1401-C0" + index)!.position;
-        const distance = collisionMesh.position.subtract(camera.position);
-        const reflectionMatrix = Matrix.Translation(
-          distance.x,
-          distance.y,
-          distance.z,
-        );
-        cubeTextures[index].setReflectionTextureMatrix(reflectionMatrix);
 
-        setCurrentTextureIndex(index);
+        cameraAnimation(camera, cameraLocations[index]);
+        scene.beginAnimation(camera, 0, 100, false, 1, () => {
+          const material = collisionMesh.material as StandardMaterial;
+          material.reflectionTexture = cubeTextures[index];
+
+          // console.log("Index base : " + index);
+          setCurrentTextureIndex(index);
+          // console.log("This the current index: " + currentTextureIndex);
+        });
+        scene.beginAnimation(collisionMesh, 0, 100, false);
         scene.render();
       }
     },
-    [scene, cubeTextures, collisionMesh],
+    [scene, cubeTextures, collisionMesh, cameraLocations],
   );
 
   return (
