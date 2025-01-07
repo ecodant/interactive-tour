@@ -40,7 +40,7 @@ const BabylonScene: React.FC = () => {
         const reflectionMatrix = Matrix.Translation(
           distance.x,
           distance.y,
-          distance.z,
+          distance.z
         );
         cubeTex.setReflectionTextureMatrix(reflectionMatrix);
       }
@@ -102,13 +102,13 @@ const BabylonScene: React.FC = () => {
             const reflectionMatrix = Matrix.Translation(
               distance.x,
               distance.y,
-              distance.z,
+              distance.z
             );
             textures[0].setReflectionTextureMatrix(reflectionMatrix);
 
             for (let i = 0; i < cubeMaps.length; i++) {
               const pointPosition = scene.getMeshByName(
-                "1401-C0" + i,
+                "1401-C0" + i
               )?.position;
               if (pointPosition)
                 createHotpot(scene, i, pointPosition, () => {
@@ -121,7 +121,7 @@ const BabylonScene: React.FC = () => {
             }
             createInfoPoints(scene);
           }
-        },
+        }
       );
 
       setScene(scene);
@@ -158,13 +158,13 @@ const BabylonScene: React.FC = () => {
         scene.render();
       }
     },
-    [scene, cubeTextures, collisionMesh, cameraLocations],
+    [scene, cubeTextures, collisionMesh, cameraLocations]
   );
 
   return (
     <div>
-      <canvas ref={canvasRef} className="w-full h-full" />
-      <div className="flex flex-row justify-center w-full bottom-0 space-x-2 absolute">
+      <canvas ref={canvasRef} className="w-full h-screen" />
+      <div className="flex flex-row justify-center w-full bottom-6 space-x-2 absolute">
         <Button
           onClick={() => {
             if (currentTextureIndex > 0)
